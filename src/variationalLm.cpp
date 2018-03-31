@@ -28,9 +28,11 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
       , d_latent_dim(latent_dim)
       , d_noise_samples(noise_samples)
       , d_vocab_size(vocab_size)
-      , d_source_rnn(layers, input_dim, hidden_dim, *d_sp_model)
-      , d_target_rnn(layers, input_dim, hidden_dim, *d_sp_model)
-{    
+      , d_source_rnn(layers, input_dim, hidden_dim, *sp_model)
+      , d_target_rnn(layers, input_dim, hidden_dim, *sp_model)
+{  
+    std::cout << "VariationalLm constructor" << std::endl; 
+    
     d_p_W_hh2 = d_sp_model->add_parameters({d_hidden2_dim, d_hidden_dim});
     d_p_b_h2 = d_sp_model->add_parameters({d_hidden2_dim});
 
@@ -53,19 +55,19 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
 
 
 void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
-                            std::shared_ptr<dynet::Expression> sp_mu,
-                            std::shared_ptr<dynet::Expression> sp_logvar,
                             std::shared_ptr<dynet::Expression> sp_error,
                             const std::vector<int>& sent)
 {
     /*
-    * Given a sent, the function evaluates 
+    * Given a sent, the function evaluates ** change this description ** 
     * 1) mean of latent variable
     * 2) logvar of laent variable
     * 3) The reconstructed sentence 
     */
 
     // encode: x --> {mu, logvar} --> z
+    std::shared_ptr<dynet::Expression> sp_mu = std::make_shared<dynet::Expression>();
+    std::shared_ptr<dynet::Expression> sp_logvar = std::make_shared<dynet::Expression>();
     std::shared_ptr<dynet::Expression> sp_enc_error = std::make_shared<dynet::Expression>(); // KL
     this->encode(sp_cg, sp_mu, sp_logvar, sp_enc_error, sent);
    
@@ -122,7 +124,7 @@ void VariationalLm::encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
 
     // KL Error: See Doersch's paper
     *sp_enc_error = 0.5 * dynet::sum_elems(dynet::exp(*sp_logvar)
-                                           + dynet::pow(*sp_mu, dy.scalarInput(2)) 
+                                           + dynet::square(*sp_mu) 
                                            -1 
                                            - *sp_logvar); 
 
@@ -155,7 +157,7 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     dynet::Expression e_b_h0 = dynet::parameter(*sp_cg, d_p_b_h0);
     dynet::Expression e_h0 = dynet::affine_transform({e_b_h0, e_W_zh0, *sp_z});
 
-    std::vector<dynet::Expression> h0s(d_layers);  
+    std::vector<dynet::Expression> h0s;  
     h0s.push_back(e_h0); // multi layers not yet supported  
     d_target_rnn.start_new_sequence(h0s);
 

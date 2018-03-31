@@ -26,8 +26,6 @@ explicit VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
 ~VariationalLm(){}
 
 void forward(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
-             std::shared_ptr<dynet::Expression> sp_mu,
-             std::shared_ptr<dynet::Expression> sp_logvar,
              std::shared_ptr<dynet::Expression> sp_error,
              const std::vector<int>& sent);
 
