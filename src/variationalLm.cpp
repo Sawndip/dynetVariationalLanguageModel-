@@ -118,7 +118,13 @@ void VariationalLm::encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     // h2-->s
     dynet::Expression e_W_h2s = dynet::parameter(*sp_cg, d_p_W_h2s);
     dynet::Expression e_b_s = dynet::parameter(*sp_cg, d_p_b_s);
-    *sp_logvar = dynet::affine_transform({e_b_s, e_W_h2s, e_h2});  
+    *sp_logvar = dynet::affine_transform({e_b_s, e_W_h2s, e_h2}); 
+
+    // KL Error: See Doersch's paper
+    *sp_enc_error = 0.5 * dynet::sum_elems(dynet::exp(*sp_logvar)
+                                           + dynet::pow(*sp_mu, dy.scalarInput(2)) 
+                                           -1 
+                                           - *sp_logvar); 
 
     return;
 

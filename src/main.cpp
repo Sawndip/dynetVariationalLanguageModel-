@@ -15,13 +15,14 @@
 
 std::string PROJECT_PATH = "/home/shantanu/Programming/dynetCppProjects/vaeLm/";
 const std::string PTB_TRAIN_FILE = PROJECT_PATH + "src/ptb_data/ptb_train.txt"; 
-const std::string UNK          = "<unk>"; // as defined in ptb train file
-const unsigned int LAYERS      = 1;
-const unsigned int IMPUT_DIM   = 64;
-const unsigned int HIDDEN_DIM  = 128;
-const unsigned int HIDDEN2_DIM = 32;
-const unsigned int LATENT_DIM  = 10;
-const unsigned int NOISE_SAMPLES  = 10;
+const std::string UNK            = "<unk>"; // as defined in ptb train file
+const unsigned int LAYERS        = 1;
+const unsigned int IMPUT_DIM     = 64;
+const unsigned int HIDDEN_DIM    = 128;
+const unsigned int HIDDEN2_DIM   = 32;
+const unsigned int LATENT_DIM    = 10;
+const unsigned int NOISE_SAMPLES = 10;
+const unsigned int MAX_EPOCHS    = 2;
 
 
 
@@ -57,6 +58,14 @@ int main(int argc, char** argv)
     std::shared_ptr<dynet::Expression> sp_mu = std::make_shared<dynet::Expression>();
     std::shared_ptr<dynet::Expression> sp_logvar = std::make_shared<dynet::Expression>();
     std::shared_ptr<dynet::Expression> sp_err = std::make_shared<dynet::Expression>();
+
+    unsigned int current_epoc = 0;
+    while(current_epoc<MAX_EPOCHS){
+        
+        for(unsigned int i=0; i<)
+        
+        ++current_epoch;
+    }
 
     for(int i=0; i<100; ++i){
 
