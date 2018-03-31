@@ -31,7 +31,12 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
       , d_source_rnn(layers, input_dim, hidden_dim, *sp_model)
       , d_target_rnn(layers, input_dim, hidden_dim, *sp_model)
 {  
-    std::cout << "VariationalLm constructor" << std::endl; 
+    std::cout << "VariationalLm constructor" << std::endl;
+
+    if(d_layers!=1){
+        std::cout << "multi layer rnn not implemented" << std::endl;
+        abort();
+    } 
     
     d_p_W_hh2 = d_sp_model->add_parameters({d_hidden2_dim, d_hidden_dim});
     d_p_b_h2 = d_sp_model->add_parameters({d_hidden2_dim});
@@ -59,10 +64,10 @@ void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
                             const std::vector<int>& sent)
 {
     /*
-    * Given a sent, the function evaluates ** change this description ** 
-    * 1) mean of latent variable
-    * 2) logvar of laent variable
-    * 3) The reconstructed sentence 
+    * Has two part: 
+    * 1) encode: encodes x to z
+    * 2) decode: decodes z to x
+    * Evaluates the error in encode and decode steps  
     */
 
     // encode: x --> {mu, logvar} --> z

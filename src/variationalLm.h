@@ -74,7 +74,6 @@ dynet::Parameter d_p_b_s;   // bias st. dev.
 dynet::Parameter d_p_W_zh0;  // matrix z --> h0
 dynet::Parameter d_p_b_h0;  // matrix z --> h0
 
-
 dynet::Parameter d_p_W_hv; // matrix h --> vocab size
 dynet::Parameter d_p_b_v;   // bias vocab size
 
