@@ -50,8 +50,15 @@ int main(int argc, char** argv)
                                HIDDEN2_DIM,
                                LATENT_DIM, 
                                vocab_size);
+
+    std::shared_ptr<dynet::ComputationGraph> sp_cg = 
+                             std::make_shared<dynet::ComputationGraph>();
+    std::shared_ptr<dynet::Expression> sp_mu = std::make_shared<dynet::Expression>();
+    std::shared_ptr<dynet::Expression> sp_logvar = std::make_shared<dynet::Expression>();
+    std::shared_ptr<dynet::Expression> sp_x_recon = std::make_shared<dynet::Expression>();
+    vaeLm.forward(sp_cg, sp_mu, sp_logvar, sp_x_recon, ptb_train_data[0]);
  
-       
+    
     
      
 

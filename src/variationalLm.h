@@ -6,6 +6,7 @@
 #include "dynet/model.h"
 #include "dynet/training.h"
 #include "dynet/gru.h"
+#include "dynet/dict.h"
 
 namespace VaeLm{
 
@@ -23,8 +24,26 @@ explicit VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
 
 ~VariationalLm(){}
 
-dynet::Expression forward(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
-                          const std::vector<int>& sent);
+void forward(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
+             std::shared_ptr<dynet::Expression> sp_mu,
+             std::shared_ptr<dynet::Expression> sp_logvar,
+             std::shared_ptr<dynet::Expression> sp_x_recon,
+             const std::vector<int>& sent);
+
+void encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
+            std::shared_ptr<dynet::Expression> sp_mu,
+            std::shared_ptr<dynet::Expression> sp_logvar,
+            const std::vector<int>& sent);
+
+void decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
+            std::shared_ptr<dynet::Expression> sp_z);
+
+void reparameterize(std::shared_ptr<dynet::ComputationGraph> sp_cg,
+                    std::shared_ptr<dynet::Expression> sp_z,
+                    std::shared_ptr<dynet::Expression> sp_mu,
+                    std::shared_ptr<dynet::Expression> sp_logvar);
+
+
 
 private:
 
@@ -49,12 +68,16 @@ dynet::Parameter d_p_b_m;   // bias mean
 dynet::Parameter d_p_W_h2s; // matrix h2 --> st. dev.
 dynet::Parameter d_p_b_s;   // bias st. dev.
 
+dynet::Parameter d_p_W_zh0;  // matrix z --> h0
+dynet::Parameter d_p_b_h0;  // matrix z --> h0
+
+
 dynet::Parameter d_p_W_hv; // matrix h --> vocab size
 dynet::Parameter d_p_b_v;   // bias vocab size
 
 // rnn builders
-dynet::GRUBuilder d_encoder_rnn; // encodes the sent 
-dynet::GRUBuilder d_decoder_rnn; // decodes the sent
+dynet::GRUBuilder d_source_rnn; // encodes the sent 
+dynet::GRUBuilder d_target_rnn; // decodes the sent
 
 dynet::LookupParameter d_p_lookup; // vocab embed   
 
