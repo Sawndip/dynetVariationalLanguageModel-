@@ -21,6 +21,8 @@ const unsigned int IMPUT_DIM   = 64;
 const unsigned int HIDDEN_DIM  = 128;
 const unsigned int HIDDEN2_DIM = 32;
 const unsigned int LATENT_DIM  = 10;
+const unsigned int NOISE_SAMPLES  = 10;
+
 
 
 int main(int argc, char** argv)
@@ -48,79 +50,20 @@ int main(int argc, char** argv)
                                IMPUT_DIM, 
                                HIDDEN_DIM, 
                                HIDDEN2_DIM,
-                               LATENT_DIM, 
+                               LATENT_DIM,
+                               NOISE_SAMPLES, 
                                vocab_size);
 
-    std::shared_ptr<dynet::ComputationGraph> sp_cg = 
-                             std::make_shared<dynet::ComputationGraph>();
     std::shared_ptr<dynet::Expression> sp_mu = std::make_shared<dynet::Expression>();
     std::shared_ptr<dynet::Expression> sp_logvar = std::make_shared<dynet::Expression>();
-    std::shared_ptr<std::vector<dynet::Expression> > sp_preds = 
-                             std::make_shared<std::vector<dynet::Expression> >(); 
-    vaeLm.forward(sp_cg, sp_mu, sp_logvar, sp_preds, ptb_train_data[0]);
-    
-    
- 
-    
-    
-     
+    std::shared_ptr<dynet::Expression> sp_err = std::make_shared<dynet::Expression>();
 
-    
-    
-    /*
-    // Create layers
-    std::shared_ptr<std::vector<MlpLayer> > sp_layers = 
-                          std::make_shared<std::vector<MlpLayer> >();  
-    sp_layers->push_back(MlpLayer(sp_model, 
-                                  784, 512, 
-                                  MlpLayer::Activation::RELU));
-    sp_layers->push_back(MlpLayer(sp_model, 
-                                  512, 512, 
-                                  MlpLayer::Activation::RELU)); 
-    sp_layers->push_back(MlpLayer(sp_model, 
-                                  512, 10, 
-                                  MlpLayer::Activation::LINEAR)); 
-    
-    // Create mlp
-    Mlp mlp(sp_model, sp_layers);
-    
-    double loss = 0.0;
-    for(size_t i=0; i<mnist_train.size(); ++i){
-        std::shared_ptr<dynet::ComputationGraph> sp_cg = 
-                             std::make_shared<dynet::ComputationGraph>(); 
-        dynet::Expression x_input = dynet::input(*sp_cg, 
-                                                 {784}, 
-                                                 mnist_train[i]);
-        dynet::Expression loss_expr = mlp.get_neg_log_like(sp_cg, 
-                                                           x_input, 
-                                                           mnist_train_labels[i]);
-        loss += dynet::as_scalar(sp_cg->forward(loss_expr));
-        sp_cg->backward(loss_expr);
-        trainer.update();  
-        
-        if(i && i%100==0){
-            std::cout <<"i = " << i 
-                      << " loss / i = " << loss / i 
-                      << std::endl;
-        }  
-    }
+    for(int i=0; i<100; ++i){
 
-    unsigned int num_correct_pred = 0;
-    for(size_t i=0; i<mnist_train.size(); ++i){
-        
         std::shared_ptr<dynet::ComputationGraph> sp_cg = 
-                             std::make_shared<dynet::ComputationGraph>(); 
-        dynet::Expression x_input = dynet::input(*sp_cg, 
-                                                 {784}, 
-                                                 mnist_train[i]);
-        if(mlp.predict(sp_cg, x_input) == mnist_train_labels[i]){
-            ++num_correct_pred;
-        }
-        if(i && i%100==0){
-            std::cout <<"i = " << i 
-                      << " accuracy / i = " << num_correct_pred * 1.0 / i 
-                      << std::endl;
-        }  
+                             std::make_shared<dynet::ComputationGraph>();
+        vaeLm.forward(sp_cg, sp_mu, sp_logvar, sp_err, ptb_train_data[i]);
     }
-    */
+    
+    
 }

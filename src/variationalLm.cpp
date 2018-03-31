@@ -18,6 +18,7 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
                              unsigned int hidden_dim,
                              unsigned int hidden2_dim,
                              unsigned int latent_dim,
+                             unsigned int noise_samples,
                              unsigned int vocab_size)
     : d_sp_model(sp_model)
       , d_layers(layers)
@@ -25,6 +26,7 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
       , d_hidden_dim(hidden_dim)
       , d_hidden2_dim(hidden2_dim)
       , d_latent_dim(latent_dim)
+      , d_noise_samples(noise_samples)
       , d_vocab_size(vocab_size)
       , d_source_rnn(layers, input_dim, hidden_dim, *d_sp_model)
       , d_target_rnn(layers, input_dim, hidden_dim, *d_sp_model)
@@ -53,7 +55,7 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
 void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
                             std::shared_ptr<dynet::Expression> sp_mu,
                             std::shared_ptr<dynet::Expression> sp_logvar,
-                            std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
+                            std::shared_ptr<dynet::Expression> sp_error,
                             const std::vector<int>& sent)
 {
     /*
@@ -64,13 +66,24 @@ void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     */
 
     // encode: x --> {mu, logvar} --> z
-    this->encode(sp_cg, sp_mu, sp_logvar, sent);
+    std::shared_ptr<dynet::Expression> sp_enc_error = std::make_shared<dynet::Expression>(); // KL
+    this->encode(sp_cg, sp_mu, sp_logvar, sp_enc_error, sent);
+   
+    std::vector<dynet::Expression> dec_errors;
+    for(unsigned int i=0; i<d_noise_samples; ++i){
+         
+        // Reparameterize
+        std::shared_ptr<dynet::Expression> sp_z = std::make_shared<dynet::Expression>();
+        this->reparameterize(sp_cg, sp_z, sp_mu, sp_logvar);
+        
+        // decode z --> x
+        std::shared_ptr<dynet::Expression> sp_dec_error = std::make_shared<dynet::Expression>();
+        this->decode(sp_cg, sp_z, sp_dec_error, sent); 
+        dec_errors.push_back(*sp_dec_error);
+    } 
+
+    *sp_error = (*sp_enc_error) + dynet::sum(dec_errors) / d_noise_samples;
     
-    std::shared_ptr<dynet::Expression> sp_z = std::make_shared<dynet::Expression>();
-    this->reparameterize(sp_cg, sp_z, sp_mu, sp_logvar);
-    
-    // decode z --> x
-    this->decode(sp_cg, sp_z, sp_preds, sent);
     return; 
 }
 
@@ -78,6 +91,7 @@ void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
 void VariationalLm::encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
                            std::shared_ptr<dynet::Expression> sp_mu,
                            std::shared_ptr<dynet::Expression> sp_logvar,
+                           std::shared_ptr<dynet::Expression> sp_enc_error,
                            const std::vector<int>& sent)
 {
     /*
@@ -125,7 +139,7 @@ void VariationalLm::reparameterize(std::shared_ptr<dynet::ComputationGraph> sp_c
 
 void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
                            std::shared_ptr<dynet::Expression> sp_z,
-                           std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
+                           std::shared_ptr<dynet::Expression> sp_dec_error,
                            const std::vector<int>& sent)
 {
     d_target_rnn.new_graph(*sp_cg);    
@@ -138,12 +152,17 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     std::vector<dynet::Expression> h0s(d_layers);  
     h0s.push_back(e_h0); // multi layers not yet supported  
     d_target_rnn.start_new_sequence(h0s);
-   
+
+    std::vector<dynet::Expression> errors; 
     for(size_t t=0; t<sent.size()-1; ++t){
         // Note the range of t
-        // The max value of t = sent.size() - 1
+        // The max value of t = sent.size() - 1 
+        // See net_word_id as a reason of this range
         
-        dynet::Expression x_t = dynet::lookup(*sp_cg, d_p_lookup, sent[t]);
+        int current_word_id = sent[t];
+        int next_word_id = sent[t+1];          
+
+        dynet::Expression x_t = dynet::lookup(*sp_cg, d_p_lookup, current_word_id);
         dynet::Expression h_t = d_target_rnn.add_input(x_t);
 
         // h_t-->v
@@ -151,10 +170,11 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
         dynet::Expression e_b_v = dynet::parameter(*sp_cg, d_p_b_v);
         dynet::Expression e_v = dynet::affine_transform({e_b_v, e_W_hv, h_t});
 
-        // In case of greedy search, pick the most likely at each time step
         // Beam search not yet supported
-        sp_preds->push_back(dynet::logistic(e_v)); 
+        errors.push_back(dynet::pickneglogsoftmax(e_v, next_word_id)); 
     }
+    
+    *sp_dec_error = dynet::sum(errors);
     
     return;
 }

@@ -20,6 +20,7 @@ explicit VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
                        unsigned int hidden_dim,
                        unsigned int hidden2_dim,
                        unsigned int latent_dim,
+                       unsigned int noise_samples,
                        unsigned int vocab_size);
 
 ~VariationalLm(){}
@@ -27,17 +28,18 @@ explicit VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
 void forward(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
              std::shared_ptr<dynet::Expression> sp_mu,
              std::shared_ptr<dynet::Expression> sp_logvar,
-             std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
+             std::shared_ptr<dynet::Expression> sp_error,
              const std::vector<int>& sent);
 
 void encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
             std::shared_ptr<dynet::Expression> sp_mu,
             std::shared_ptr<dynet::Expression> sp_logvar,
+            std::shared_ptr<dynet::Expression> sp_enc_error,
             const std::vector<int>& sent);
 
 void decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
             std::shared_ptr<dynet::Expression> sp_z,
-            std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
+            std::shared_ptr<dynet::Expression> sp_dec_error,
             const std::vector<int>& sent);
 
 void reparameterize(std::shared_ptr<dynet::ComputationGraph> sp_cg,
@@ -58,6 +60,7 @@ unsigned int d_input_dim;   // rnn input dim
 unsigned int d_hidden_dim;  // rnn hidden state dim
 unsigned int d_hidden2_dim; // layer between rnn output and latent var  
 unsigned int d_latent_dim;  // latent var dim 
+unsigned int d_noise_samples; // number of noise samples per training data
 unsigned int d_vocab_size;
 
 // model parameters
