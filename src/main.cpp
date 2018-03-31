@@ -55,8 +55,11 @@ int main(int argc, char** argv)
                              std::make_shared<dynet::ComputationGraph>();
     std::shared_ptr<dynet::Expression> sp_mu = std::make_shared<dynet::Expression>();
     std::shared_ptr<dynet::Expression> sp_logvar = std::make_shared<dynet::Expression>();
-    std::shared_ptr<dynet::Expression> sp_x_recon = std::make_shared<dynet::Expression>();
-    vaeLm.forward(sp_cg, sp_mu, sp_logvar, sp_x_recon, ptb_train_data[0]);
+    std::shared_ptr<std::vector<dynet::Expression> > sp_preds = 
+                             std::make_shared<std::vector<dynet::Expression> >(); 
+    vaeLm.forward(sp_cg, sp_mu, sp_logvar, sp_preds, ptb_train_data[0]);
+    
+    
  
     
     

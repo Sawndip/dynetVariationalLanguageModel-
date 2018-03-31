@@ -27,7 +27,7 @@ explicit VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
 void forward(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
              std::shared_ptr<dynet::Expression> sp_mu,
              std::shared_ptr<dynet::Expression> sp_logvar,
-             std::shared_ptr<dynet::Expression> sp_x_recon,
+             std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
              const std::vector<int>& sent);
 
 void encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
@@ -36,7 +36,9 @@ void encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
             const std::vector<int>& sent);
 
 void decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
-            std::shared_ptr<dynet::Expression> sp_z);
+            std::shared_ptr<dynet::Expression> sp_z,
+            std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
+            const std::vector<int>& sent);
 
 void reparameterize(std::shared_ptr<dynet::ComputationGraph> sp_cg,
                     std::shared_ptr<dynet::Expression> sp_z,

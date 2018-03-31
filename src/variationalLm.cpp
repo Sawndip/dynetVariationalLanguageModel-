@@ -38,8 +38,9 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
     d_p_W_h2s = d_sp_model->add_parameters({d_latent_dim, d_hidden2_dim});
     d_p_b_s = d_sp_model->add_parameters({d_latent_dim});
 
-    d_p_W_zh0 = d_sp_model->add_parameters({d_hidden_dim, d_latent_dim});
-    d_p_b_h0 = d_sp_model->add_parameters({d_hidden_dim});
+    d_p_W_zh0 = d_sp_model->add_parameters({d_hidden_dim * d_layers, 
+                                            d_latent_dim});
+    d_p_b_h0 = d_sp_model->add_parameters({d_hidden_dim * d_layers});
 
     d_p_W_hv = d_sp_model->add_parameters({d_vocab_size, d_hidden_dim});
     d_p_b_v = d_sp_model->add_parameters({d_vocab_size});
@@ -52,7 +53,7 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
 void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
                             std::shared_ptr<dynet::Expression> sp_mu,
                             std::shared_ptr<dynet::Expression> sp_logvar,
-                            std::shared_ptr<dynet::Expression> sp_x_recon,
+                            std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
                             const std::vector<int>& sent)
 {
     /*
@@ -69,7 +70,7 @@ void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     this->reparameterize(sp_cg, sp_z, sp_mu, sp_logvar);
     
     // decode z --> x
-    this->decode(sp_cg, sp_z);
+    this->decode(sp_cg, sp_z, sp_preds, sent);
     return; 
 }
 
@@ -98,12 +99,12 @@ void VariationalLm::encode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     // h2-->m
     dynet::Expression e_W_h2m = dynet::parameter(*sp_cg, d_p_W_h2m);
     dynet::Expression e_b_m = dynet::parameter(*sp_cg, d_p_b_m);
-    *sp_mu = e_W_h2m * e_h2 + e_b_m;
+    *sp_mu = dynet::affine_transform({e_b_m, e_W_h2m, e_h2});
 
     // h2-->s
     dynet::Expression e_W_h2s = dynet::parameter(*sp_cg, d_p_W_h2s);
     dynet::Expression e_b_s = dynet::parameter(*sp_cg, d_p_b_s);
-    *sp_logvar = e_W_h2s * e_h2 + e_b_s;    
+    *sp_logvar = dynet::affine_transform({e_b_s, e_W_h2s, e_h2});  
 
     return;
 
@@ -118,10 +119,13 @@ void VariationalLm::reparameterize(std::shared_ptr<dynet::ComputationGraph> sp_c
     dynet::Expression std = dynet::exp((*sp_logvar) * 0.5);
     dynet::Expression eps = dynet::random_normal(*sp_cg, std.dim());
     *sp_z = dynet::cmult(std, eps) + (*sp_mu);
+
+    return;
 }
 
 void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg, 
                            std::shared_ptr<dynet::Expression> sp_z,
+                           std::shared_ptr<std::vector<dynet::Expression> > sp_preds,
                            const std::vector<int>& sent)
 {
     d_target_rnn.new_graph(*sp_cg);    
@@ -129,13 +133,30 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     // z-->h0
     dynet::Expression e_W_zh0 = dynet::parameter(*sp_cg, d_p_W_zh0);
     dynet::Expression e_b_h0 = dynet::parameter(*sp_cg, d_p_b_h0);
-    dynet::Expression e_h0 = e_W_zh0 * (*sp_z) + e_b_h0;
+    dynet::Expression e_h0 = dynet::affine_transform({e_b_h0, e_W_zh0, *sp_z});
 
-    // Layers == 1. multi layers not yet supported 
-    std::vector<dynet::Expression> h0s(d_layers);   
+    std::vector<dynet::Expression> h0s(d_layers);  
+    h0s.push_back(e_h0); // multi layers not yet supported  
     d_target_rnn.start_new_sequence(h0s);
+   
+    for(size_t t=0; t<sent.size()-1; ++t){
+        // Note the range of t
+        // The max value of t = sent.size() - 1
+        
+        dynet::Expression x_t = dynet::lookup(*sp_cg, d_p_lookup, sent[t]);
+        dynet::Expression h_t = d_target_rnn.add_input(x_t);
 
-     
+        // h_t-->v
+        dynet::Expression e_W_hv = dynet::parameter(*sp_cg, d_p_W_hv);
+        dynet::Expression e_b_v = dynet::parameter(*sp_cg, d_p_b_v);
+        dynet::Expression e_v = dynet::affine_transform({e_b_v, e_W_hv, h_t});
+
+        // In case of greedy search, pick the most likely at each time step
+        // Beam search not yet supported
+        sp_preds->push_back(dynet::logistic(e_v)); 
+    }
+    
+    return;
 }
 
 
