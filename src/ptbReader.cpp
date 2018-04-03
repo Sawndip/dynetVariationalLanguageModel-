@@ -19,7 +19,7 @@ bool comparator_to_sort_in_ascending_length(const std::vector<int>& lhs, const s
     return (lhs.size() < rhs.size());
 }
 
-void testCreate_batches(const std::vector<PtbReader::BATCH_INDEX_t>& batchIndexList,
+void test_create_batches(const std::vector<PtbReader::BATCH_INDEX_t>& batchIndexList,
                         const std::vector<std::vector<int> >& data, 
                         const unsigned int& max_batch_size)
 {
@@ -197,5 +197,5 @@ void PtbReader::create_batches(std::vector<PtbReader::BATCH_INDEX_t>* pt_batchIn
         }
     }
 
-    testCreate_batches(*pt_batchIndexList, data, max_batch_size);
+    test_create_batches(*pt_batchIndexList, data, max_batch_size);
 }
