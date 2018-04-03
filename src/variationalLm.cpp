@@ -185,20 +185,22 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     return;
 }
 
-
 void VariationalLm::train(std::vector<std::vector<int> >* pt_train_data,
                           std::vector<std::vector<int> >* pt_valid_data,
                           const unsigned int& max_epochs,
                           const unsigned int& batch_size)
 {  
+    // Prepare train data for batching
     std::vector<std::vector<int> >& train_data = *pt_train_data;
-    std::vector<std::vector<int> >& valid_data = *pt_valid_data;
-    
-    // Prepare data for batching
     PtbReader::sort_data_in_ascending_length(&train_data);
+    std::vector<PtbReader::BATCH_INDEX_t> batchIndexListTrain;
+    PtbReader::create_batches(&batchIndexListTrain, train_data, batch_size);
+
+    // Prepare train data for batching
+    std::vector<std::vector<int> >& valid_data = *pt_valid_data;
     PtbReader::sort_data_in_ascending_length(&valid_data);
-    std::vector<PtbReader::BATCH_INDEX_t> batchIndexList;
-    PtbReader::create_batches(&batchIndexList, train_data, batch_size);
+    std::vector<PtbReader::BATCH_INDEX_t> batchIndexListValid;
+    PtbReader::create_batches(&batchIndexListValid, valid_data, batch_size);
  
     unsigned int current_epoch = 0;
     unsigned int report_every = 50; // log every report_every sentences 
