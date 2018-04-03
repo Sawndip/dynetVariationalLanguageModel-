@@ -8,8 +8,6 @@
 #include "dynet/gru.h"
 #include "dynet/dict.h"
 
-namespace VaeLm{
-
 class VariationalLm{
 
 public:
@@ -20,7 +18,6 @@ explicit VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
                        unsigned int hidden_dim,
                        unsigned int hidden2_dim,
                        unsigned int latent_dim,
-                       unsigned int noise_samples,
                        unsigned int vocab_size);
 
 ~VariationalLm(){}
@@ -45,6 +42,11 @@ void reparameterize(std::shared_ptr<dynet::ComputationGraph> sp_cg,
                     std::shared_ptr<dynet::Expression> sp_mu,
                     std::shared_ptr<dynet::Expression> sp_logvar);
 
+void train(std::vector<std::vector<int> >* pt_train_data,
+           std::vector<std::vector<int> >* pt_valid_data,
+           const unsigned int& max_epochs,
+           const unsigned int& batch_size);
+
 
 
 private:
@@ -58,7 +60,6 @@ unsigned int d_input_dim;   // rnn input dim
 unsigned int d_hidden_dim;  // rnn hidden state dim
 unsigned int d_hidden2_dim; // layer between rnn output and latent var  
 unsigned int d_latent_dim;  // latent var dim 
-unsigned int d_noise_samples; // number of noise samples per training data
 unsigned int d_vocab_size;
 
 // model parameters
@@ -84,7 +85,5 @@ dynet::GRUBuilder d_target_rnn; // decodes the sent
 dynet::LookupParameter d_p_lookup; // vocab embed   
 
 };
-
-}
 
 #endif

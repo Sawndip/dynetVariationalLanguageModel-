@@ -1,4 +1,5 @@
 #include "variationalLm.h"
+#include "ptbReader.h"
 
 #include "dynet/io.h"
 #include "dynet/expr.h"
@@ -10,15 +11,12 @@
 #include <iostream>
 #include <cassert>
 
-namespace VaeLm{
-
 VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_model,
                              unsigned int layers, 
                              unsigned int input_dim,
                              unsigned int hidden_dim,
                              unsigned int hidden2_dim,
                              unsigned int latent_dim,
-                             unsigned int noise_samples,
                              unsigned int vocab_size)
     : d_sp_model(sp_model)
       , d_layers(layers)
@@ -26,7 +24,6 @@ VariationalLm::VariationalLm(std::shared_ptr<dynet::ParameterCollection> sp_mode
       , d_hidden_dim(hidden_dim)
       , d_hidden2_dim(hidden2_dim)
       , d_latent_dim(latent_dim)
-      , d_noise_samples(noise_samples)
       , d_vocab_size(vocab_size)
       , d_source_rnn(layers, input_dim, hidden_dim, *sp_model)
       , d_target_rnn(layers, input_dim, hidden_dim, *sp_model)
@@ -76,20 +73,16 @@ void VariationalLm::forward(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     std::shared_ptr<dynet::Expression> sp_enc_error = std::make_shared<dynet::Expression>(); // KL
     this->encode(sp_cg, sp_mu, sp_logvar, sp_enc_error, sent);
    
-    std::vector<dynet::Expression> dec_errors;
-    for(unsigned int i=0; i<d_noise_samples; ++i){
-         
-        // Reparameterize
-        std::shared_ptr<dynet::Expression> sp_z = std::make_shared<dynet::Expression>();
-        this->reparameterize(sp_cg, sp_z, sp_mu, sp_logvar);
+    // Reparameterize
+    std::shared_ptr<dynet::Expression> sp_z = std::make_shared<dynet::Expression>();
+    this->reparameterize(sp_cg, sp_z, sp_mu, sp_logvar);
         
-        // decode z --> x
-        std::shared_ptr<dynet::Expression> sp_dec_error = std::make_shared<dynet::Expression>();
-        this->decode(sp_cg, sp_z, sp_dec_error, sent); 
-        dec_errors.push_back(*sp_dec_error);
-    } 
+    // decode z --> x
+    std::shared_ptr<dynet::Expression> sp_dec_error = std::make_shared<dynet::Expression>();
+    this->decode(sp_cg, sp_z, sp_dec_error, sent); 
 
-    *sp_error = (*sp_enc_error) + dynet::sum(dec_errors) / d_noise_samples;
+    // Error = sum of encode/decode errors
+    *sp_error = (*sp_enc_error) + (*sp_dec_error);
     
     return; 
 }
@@ -169,7 +162,7 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
     std::vector<dynet::Expression> errors; 
     for(size_t t=0; t<sent.size()-1; ++t){
         // Note the range of t
-        // The max value of t = sent.size() - 1 
+        // The max value of t = sent.size() - 2 
         // See net_word_id as a reason of this range
         
         int current_word_id = sent[t];
@@ -193,4 +186,53 @@ void VariationalLm::decode(std::shared_ptr<dynet::ComputationGraph> sp_cg,
 }
 
 
-} // VaeLm
+void VariationalLm::train(std::vector<std::vector<int> >* pt_train_data,
+                          std::vector<std::vector<int> >* pt_valid_data,
+                          const unsigned int& max_epochs,
+                          const unsigned int& batch_size)
+{  
+    std::vector<std::vector<int> >& train_data = *pt_train_data;
+    std::vector<std::vector<int> >& valid_data = *pt_valid_data;
+    
+    // Prepare data for batching
+    PtbReader::sort_data_in_ascending_length(&train_data);
+    PtbReader::sort_data_in_ascending_length(&valid_data);
+    //PtbReader::create_batches(train_data, batch_size);
+ 
+    unsigned int current_epoch = 0;
+    unsigned int report_every = 50; // log every report_every sentences 
+    unsigned int lines = 0; // lines seen in current epoch
+    dynet::AdamTrainer trainer(*d_sp_model);
+    std::shared_ptr<dynet::Expression> sp_err = std::make_shared<dynet::Expression>();
+    while(current_epoch<max_epochs){
+        
+        unsigned int num_words = 0;
+        double loss = 0.0; 
+        for(unsigned int i=0; 
+                i<report_every && lines<train_data.size();
+                ++i){
+
+            std::shared_ptr<dynet::ComputationGraph> sp_cg = 
+                             std::make_shared<dynet::ComputationGraph>();
+            this->forward(sp_cg, sp_err, train_data[lines]);
+            ++lines;
+            num_words += train_data[i].size();
+            loss += dynet::as_scalar(sp_cg->forward(*sp_err));
+            sp_cg->backward(*sp_err);
+            trainer.update();
+        }
+        
+        trainer.status();
+        std::cout << " E = " << (loss / num_words ) 
+                  << " ppl = " << std::exp(loss / num_words) 
+                  << " lines = " << lines
+                  << " current_epoch = " << current_epoch
+                  << std::endl;
+
+        if(lines == train_data.size()){
+            lines = 0;  
+            ++current_epoch; 
+        }
+    }
+
+}
