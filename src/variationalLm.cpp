@@ -197,7 +197,8 @@ void VariationalLm::train(std::vector<std::vector<int> >* pt_train_data,
     // Prepare data for batching
     PtbReader::sort_data_in_ascending_length(&train_data);
     PtbReader::sort_data_in_ascending_length(&valid_data);
-    //PtbReader::create_batches(train_data, batch_size);
+    std::vector<PtbReader::BATCH_INDEX_t> batchIndexList;
+    PtbReader::create_batches(&batchIndexList, train_data, batch_size);
  
     unsigned int current_epoch = 0;
     unsigned int report_every = 50; // log every report_every sentences 
