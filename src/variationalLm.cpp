@@ -196,7 +196,7 @@ void VariationalLm::train(std::vector<std::vector<int> >* pt_train_data,
     std::vector<PtbReader::BATCH_INDEX_t> batchIndexListTrain;
     PtbReader::create_batches(&batchIndexListTrain, train_data, batch_size);
 
-    // Prepare train data for batching
+    // Prepare valid data for batching
     std::vector<std::vector<int> >& valid_data = *pt_valid_data;
     PtbReader::sort_data_in_ascending_length(&valid_data);
     std::vector<PtbReader::BATCH_INDEX_t> batchIndexListValid;
